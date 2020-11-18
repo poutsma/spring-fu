@@ -9,8 +9,8 @@ public class Application {
 
 	public static JafuApplication app = reactiveWebApplication(a -> a
 			.beans(b -> b
-					.bean(SampleHandler.class)
-					.bean(SampleService.class))
+					.bean(SampleService.class)
+					.bean(SampleHandler.class, () -> new SampleHandler(b.ref(SampleService.class))))
 			.enable(webFlux(s -> s
 					.port(s.profiles().contains("test") ? 8181 : 8080)
 					.router(r -> {
@@ -25,4 +25,5 @@ public class Application {
 	public static void main (String[] args) {
 		app.run(args);
 	}
+
 }
