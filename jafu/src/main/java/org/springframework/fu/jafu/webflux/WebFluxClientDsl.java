@@ -12,6 +12,7 @@ import org.springframework.boot.autoconfigure.web.reactive.function.client.React
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.fu.jafu.AbstractDsl;
+import org.springframework.fu.jafu.FeatureFunction;
 import org.springframework.fu.jafu.web.JacksonDsl;
 
 /**
@@ -28,14 +29,12 @@ import org.springframework.fu.jafu.web.JacksonDsl;
  */
 public class WebFluxClientDsl extends AbstractDsl {
 
-	private final Consumer<WebFluxClientDsl> dsl;
-
 	private boolean codecsConfigured = false;
 
 	private String baseUrl = null;
 
-	private WebFluxClientDsl(Consumer<WebFluxClientDsl> dsl) {
-		this.dsl = dsl;
+	private WebFluxClientDsl(GenericApplicationContext applicationContext) {
+		super(applicationContext);
 	}
 
 	/**
@@ -43,12 +42,16 @@ public class WebFluxClientDsl extends AbstractDsl {
 	 * @see org.springframework.fu.jafu.ConfigurationDsl#enable(ApplicationContextInitializer)
 	 * @see org.springframework.web.reactive.function.client.WebClient.Builder
 	 */
-	public static ApplicationContextInitializer<GenericApplicationContext> webClient() {
-		return new WebFluxClientDsl(webFluxClientDsl -> {});
+	public static FeatureFunction<WebFluxClientDsl> webClient() {
+		return FeatureFunction.of(WebFluxClientDsl::new, WebFluxClientDsl::afterConfiguration);
 	}
-
-	public static ApplicationContextInitializer<GenericApplicationContext> webClient(Consumer<WebFluxClientDsl> dsl) {
-		return new WebFluxClientDsl(dsl);
+	
+	private void afterConfiguration() {
+		if (!this.codecsConfigured) {
+			new StringCodecInitializer(true, false).initialize(applicationContext);
+			new ResourceCodecInitializer(true).initialize(applicationContext);
+		}
+		new ReactiveWebClientBuilderInitializer(baseUrl).initialize(applicationContext);
 	}
 
 	/**
@@ -63,7 +66,7 @@ public class WebFluxClientDsl extends AbstractDsl {
 	 * Configure codecs via a {@link WebFluxClientCodecDsl dedicated DSL}.
 	 */
 	public WebFluxClientDsl codecs(Consumer<WebFluxClientCodecDsl> init) {
-		new WebFluxClientCodecDsl(init).initialize(context);
+		init.accept(new WebFluxClientCodecDsl(applicationContext));
 		this.codecsConfigured = true;
 		return this;
 	}
@@ -76,26 +79,13 @@ public class WebFluxClientDsl extends AbstractDsl {
 		return (WebFluxClientDsl) super.enable(dsl);
 	}
 
-	@Override
-	public void initialize(GenericApplicationContext context) {
-		super.initialize(context);
-		this.dsl.accept(this);
-		if (!this.codecsConfigured) {
-			new StringCodecInitializer(true, false).initialize(context);
-			new ResourceCodecInitializer(true).initialize(context);
-		}
-		new ReactiveWebClientBuilderInitializer(baseUrl).initialize(context);
-	}
-
 	/**
 	 * Jafu DSL for WebFlux webClient codecs.
 	 */
 	static public class WebFluxClientCodecDsl extends AbstractDsl {
 
-		private final Consumer<WebFluxClientCodecDsl> dsl;
-
-		public WebFluxClientCodecDsl(Consumer<WebFluxClientCodecDsl> dsl) {
-			this.dsl = dsl;
+		WebFluxClientCodecDsl(GenericApplicationContext applicationContext) {
+			super(applicationContext);
 		}
 
 		@Override
@@ -103,18 +93,12 @@ public class WebFluxClientDsl extends AbstractDsl {
 			return (WebFluxClientCodecDsl) super.enable(dsl);
 		}
 
-		@Override
-		public void initialize(GenericApplicationContext context) {
-			super.initialize(context);
-			this.dsl.accept(this);
-		}
-
 		/**
 		 * Enable {@link org.springframework.core.codec.CharSequenceEncoder} and {@link org.springframework.core.codec.StringDecoder} for all media types
 		 * @see #string(boolean)
 		 */
 		public WebFluxClientCodecDsl string() {
-			new StringCodecInitializer(true, false).initialize(context);
+			new StringCodecInitializer(true, false).initialize(applicationContext);
 			return this;
 		}
 
@@ -122,7 +106,7 @@ public class WebFluxClientDsl extends AbstractDsl {
 		 * Enable {@link org.springframework.core.codec.CharSequenceEncoder} and {@link org.springframework.core.codec.StringDecoder}
 		 */
 		public WebFluxClientCodecDsl string(boolean textPlainOnly) {
-			new StringCodecInitializer(true, textPlainOnly).initialize(context);
+			new StringCodecInitializer(true, textPlainOnly).initialize(applicationContext);
 			return this;
 		}
 
@@ -130,7 +114,7 @@ public class WebFluxClientDsl extends AbstractDsl {
 		 * Enable {@link org.springframework.http.codec.ResourceHttpMessageWriter} and {@link org.springframework.core.codec.ResourceDecoder}
 		 */
 		public WebFluxClientCodecDsl resource() {
-			new ResourceCodecInitializer(true).initialize(context);
+			new ResourceCodecInitializer(true).initialize(applicationContext);
 			return this;
 		}
 
@@ -141,7 +125,7 @@ public class WebFluxClientDsl extends AbstractDsl {
 		 * supports `application/x-protobuf` and `application/octet-stream`.
 		 */
 		public WebFluxClientCodecDsl protobuf() {
-			new ProtobufCodecInitializer(true).initialize(context);
+			new ProtobufCodecInitializer(true).initialize(applicationContext);
 			return this;
 		}
 
@@ -149,7 +133,7 @@ public class WebFluxClientDsl extends AbstractDsl {
 		 * Enable {@link org.springframework.http.codec.FormHttpMessageWriter} and {@link org.springframework.http.codec.FormHttpMessageReader}
 		 */
 		public WebFluxClientCodecDsl form() {
-			new FormCodecInitializer(true).initialize(context);
+			new FormCodecInitializer(true).initialize(applicationContext);
 			return this;
 		}
 
@@ -158,7 +142,7 @@ public class WebFluxClientDsl extends AbstractDsl {
 		 * {@link org.springframework.http.codec.multipart.MultipartHttpMessageReader}
 		 */
 		public WebFluxClientCodecDsl multipart() {
-			new MultipartCodecInitializer(true).initialize(context);
+			new MultipartCodecInitializer(true).initialize(applicationContext);
 			return this;
 		}
 
@@ -177,8 +161,8 @@ public class WebFluxClientDsl extends AbstractDsl {
 		 * (included by default in `spring-boot-starter-webflux`).
 		 */
 		public WebFluxClientCodecDsl jackson(Consumer<JacksonDsl> dsl) {
-			new JacksonJsonCodecInitializer(true).initialize(context);
-			new JacksonDsl(true, dsl).initialize(context);
+			new JacksonJsonCodecInitializer(true).initialize(applicationContext);
+			dsl.accept(new JacksonDsl(true, applicationContext));
 			return this;
 		}
 	}

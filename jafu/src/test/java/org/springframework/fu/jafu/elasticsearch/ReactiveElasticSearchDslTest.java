@@ -25,8 +25,8 @@ class ReactiveElasticSearchDslTest {
 
         es.start();
         var app = Jafu.application(a ->
-                a.enable(reactiveElasticSearch(esDsl ->
-                        esDsl.hostAndPort("localhost:" + es.getFirstMappedPort()))));
+                a.enable(reactiveElasticSearch(), esDsl ->
+                        esDsl.hostAndPort("localhost:" + es.getFirstMappedPort())));
 
         var context = app.run();
         var reactiveClient = context.getBean(ReactiveElasticsearchClient.class);

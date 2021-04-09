@@ -25,8 +25,6 @@ public abstract class AbstractRedisDsl<SELF extends AbstractRedisDsl<SELF>> exte
 
     private ApplicationContextInitializer<GenericApplicationContext> redisClientInitializer;
 
-    private final Consumer<SELF> dsl;
-
     protected RedisProperties properties = new RedisProperties();
 
     protected abstract SELF getSelf();
@@ -39,10 +37,14 @@ public abstract class AbstractRedisDsl<SELF extends AbstractRedisDsl<SELF>> exte
         return redisClientInitializer;
     }
 
-    public AbstractRedisDsl(final Consumer<SELF> dsl) {
+    public AbstractRedisDsl(GenericApplicationContext context) {
+        super(context);
         this.self = getSelf();
         this.redisClientInitializer = new LettuceRedisInitializer(properties);
-        this.dsl = dsl;
+
+        getRedisClientInitializier().initialize(context);
+        new ClusterInitializer(properties.getCluster()).initialize(context);
+        new SentinelInitializer(properties.getSentinel()).initialize(context);
     }
 
     public SELF database(final int database) {
@@ -256,17 +258,6 @@ public abstract class AbstractRedisDsl<SELF extends AbstractRedisDsl<SELF>> exte
             }
 
         }
-    }
-
-    @Override
-    public void initialize(GenericApplicationContext context) {
-        super.initialize(context);
-
-        dsl.accept(self);
-
-        getRedisClientInitializier().initialize(context);
-        new ClusterInitializer(properties.getCluster()).initialize(context);
-        new SentinelInitializer(properties.getSentinel()).initialize(context);
     }
 
 }

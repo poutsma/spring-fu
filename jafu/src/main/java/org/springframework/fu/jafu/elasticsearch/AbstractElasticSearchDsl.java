@@ -10,14 +10,13 @@ import java.util.function.Consumer;
 public abstract class AbstractElasticSearchDsl<SELF extends AbstractElasticSearchDsl<SELF>> extends AbstractDsl {
 
     private final SELF self;
-    private final Consumer<SELF> dsl;
     private Optional<String> hostAndPort = Optional.empty();
     private Boolean useSsl = false;
 
     protected abstract SELF getSelf();
 
-    protected AbstractElasticSearchDsl(Consumer<SELF> dsl) {
-        this.dsl = dsl;
+    protected AbstractElasticSearchDsl(GenericApplicationContext applicationContext) {
+        super(applicationContext);
         this.self = getSelf();
     }
 
@@ -40,11 +39,5 @@ public abstract class AbstractElasticSearchDsl<SELF extends AbstractElasticSearc
             terminalBuilder = maybeSecureBuilder.usingSsl();
         }
         return terminalBuilder.build();
-    }
-
-    @Override
-    public void initialize(GenericApplicationContext context) {
-        super.initialize(context);
-        dsl.accept(self);
     }
 }

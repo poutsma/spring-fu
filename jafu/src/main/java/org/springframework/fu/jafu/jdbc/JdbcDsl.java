@@ -14,96 +14,88 @@ import org.springframework.boot.jdbc.DataSourceInitializationMode;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.fu.jafu.AbstractDsl;
+import org.springframework.fu.jafu.FeatureFunction;
 
 /**
  * Jafu DSL for JDBC configuration.
  */
 public class JdbcDsl extends AbstractDsl {
 
-    private final Consumer<JdbcDsl> dsl;
-
     private final JdbcProperties jdbcProperties = new JdbcProperties();
 
     private final DataSourceProperties dataSourceProperties = new DataSourceProperties();
 
-    JdbcDsl(Consumer<JdbcDsl> dsl) {
-        this.dsl = dsl;
+    private JdbcDsl(GenericApplicationContext applicationContext) {
+        super(applicationContext);
     }
 
-    public static ApplicationContextInitializer<GenericApplicationContext> jdbc() {
-        return new JdbcDsl(dsl -> {});
-    }
-
-    public static ApplicationContextInitializer<GenericApplicationContext> jdbc(Consumer<JdbcDsl> dsl) {
-        return new JdbcDsl(dsl);
+    public static FeatureFunction<JdbcDsl> jdbc() {
+        return FeatureFunction.of(JdbcDsl::new, JdbcDsl::afterConfiguration);
     }
 
     public JdbcDsl url(String url){
-        dataSourceProperties.setUrl(url);
+        this.dataSourceProperties.setUrl(url);
         return this;
     }
 
     public JdbcDsl name(String name){
-        dataSourceProperties.setName(name);
+        this.dataSourceProperties.setName(name);
         return this;
     }
 
     public JdbcDsl username(String username){
-        dataSourceProperties.setUsername(username);
+        this.dataSourceProperties.setUsername(username);
         return this;
     }
 
     public JdbcDsl password(String password){
-        dataSourceProperties.setPassword(password);
+        this.dataSourceProperties.setPassword(password);
         return this;
     }
 
     public JdbcDsl generateUniqueName(Boolean generate){
-        dataSourceProperties.setGenerateUniqueName(generate);
+        this.dataSourceProperties.setGenerateUniqueName(generate);
         return this;
     }
 
     public JdbcDsl driverClassName(String driverClassName){
-        dataSourceProperties.setDriverClassName(driverClassName);
+        this.dataSourceProperties.setDriverClassName(driverClassName);
         return this;
     }
 
     public JdbcDsl schema(String schema){
-        if (dataSourceProperties.getSchema() == null) {
+        if (this.dataSourceProperties.getSchema() == null) {
             List<String> schemaList = new ArrayList<>();
             schemaList.add(schema);
-            dataSourceProperties.setSchema(schemaList);
+            this.dataSourceProperties.setSchema(schemaList);
         }
         else {
-            dataSourceProperties.getSchema().add(schema);
+            this.dataSourceProperties.getSchema().add(schema);
         }
         return this;
     }
 
     public JdbcDsl initializationMode(DataSourceInitializationMode initializationMode) {
-        dataSourceProperties.setInitializationMode(initializationMode);
+        this.dataSourceProperties.setInitializationMode(initializationMode);
         return this;
     }
 
-    public JdbcDsl data(String data){
-        if (dataSourceProperties.getData() == null) {
+    public JdbcDsl data(String data) {
+        if (this.dataSourceProperties.getData() == null) {
             List<String> dataList = new ArrayList<>();
             dataList.add(data);
-            dataSourceProperties.setData(dataList);
+            this.dataSourceProperties.setData(dataList);
         }
         else {
-            dataSourceProperties.getData().add(data);
+            this.dataSourceProperties.getData().add(data);
         }
         return this;
     }
 
-    @Override
-    public void initialize(GenericApplicationContext context) {
-        super.initialize(context);
-        this.dsl.accept(this);
-        new EmbeddedDataSourceConfigurationInitializer(dataSourceProperties).initialize(context);
-        new JdbcTemplateConfigurationInitializer(jdbcProperties).initialize(context);
-        new DataSourceTransactionManagerAutoConfigurationInitializer().initialize(context);
-        new DataSourceInitializerInvokerInitializer(dataSourceProperties).initialize(context);
+    private void afterConfiguration() {
+        new EmbeddedDataSourceConfigurationInitializer(this.dataSourceProperties).initialize(this.applicationContext);
+        new JdbcTemplateConfigurationInitializer(this.jdbcProperties).initialize(this.applicationContext);
+        new DataSourceTransactionManagerAutoConfigurationInitializer().initialize(this.applicationContext);
+        new DataSourceInitializerInvokerInitializer(this.dataSourceProperties).initialize(this.applicationContext);
     }
 }

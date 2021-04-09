@@ -23,11 +23,8 @@ import org.springframework.context.support.GenericApplicationContext;
  */
 public class ConfigurationDsl extends AbstractDsl {
 
-	private final Consumer<ConfigurationDsl> dsl;
-
-	ConfigurationDsl(Consumer<ConfigurationDsl> dsl) {
-		super();
-		this.dsl = dsl;
+	ConfigurationDsl(GenericApplicationContext context) {
+		super(context);
 	}
 
 	/**
@@ -56,7 +53,8 @@ public class ConfigurationDsl extends AbstractDsl {
 	 * @see <a href="https://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-external-config.html#boot-features-external-config-typesafe-configuration-properties">Type-safe Configuration Properties</a>
 	 */
 	public <T> ConfigurationDsl configurationProperties(Class<T> clazz, String prefix) {
-		context.registerBean(clazz.getSimpleName() + "ConfigurationProperties", clazz, () -> new FunctionalConfigurationPropertiesBinder(context).bind(prefix, Bindable.of(clazz)).get());
+		applicationContext.registerBean(clazz.getSimpleName() + "ConfigurationProperties", clazz, () -> new FunctionalConfigurationPropertiesBinder(
+				applicationContext).bind(prefix, Bindable.of(clazz)).get());
 		return this;
 	}
 
@@ -64,25 +62,19 @@ public class ConfigurationDsl extends AbstractDsl {
 	 * Configure beans via a {@link BeanDefinitionDsl dedicated DSL}.
 	 */
 	public ConfigurationDsl beans(Consumer<BeanDefinitionDsl> dsl) {
-		new BeanDefinitionDsl(dsl).initialize(context);
+		dsl.accept(new BeanDefinitionDsl(this.applicationContext));
 		return this;
 	}
 
-	/**
-	 * Enable the specified functional configuration.
-	 * @see #enable(Consumer)
-	 */
 	@Override
-	public ConfigurationDsl enable(ApplicationContextInitializer<GenericApplicationContext> configuration) {
-		return (ConfigurationDsl) super.enable(configuration);
+	public <T> ConfigurationDsl enable(FeatureFunction<T> feature) {
+		super.enable(feature);
+		return this;
 	}
 
-	/**
-	 * Enable the specified functional configuration.
-	 * @see #enable(ApplicationContextInitializer)
-	 */
-	public ConfigurationDsl enable(Consumer<ConfigurationDsl> configuration) {
-		new ConfigurationDsl(configuration).initialize(context);
+	@Override
+	public <T> ConfigurationDsl enable(FeatureFunction<T> feature, Consumer<T> configuration) {
+		super.enable(feature, configuration);
 		return this;
 	}
 
@@ -92,19 +84,13 @@ public class ConfigurationDsl extends AbstractDsl {
 	 */
 	@SuppressWarnings("unchecked")
 	public <E extends ApplicationEvent> ConfigurationDsl listener(Class<E> clazz, ApplicationListener<E> listener) {
-		context.addApplicationListener(e -> {
+		applicationContext.addApplicationListener(e -> {
 			// TODO Leverage SPR-16872 when it will be fixed
 			if (clazz.isAssignableFrom(e.getClass())) {
 				listener.onApplicationEvent((E)e);
 			}
 		});
 		return this;
-	}
-
-	@Override
-	public void initialize(GenericApplicationContext context) {
-		super.initialize(context);
-		this.dsl.accept(this);
 	}
 
 }

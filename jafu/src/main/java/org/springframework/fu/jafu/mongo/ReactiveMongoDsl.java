@@ -12,6 +12,7 @@ import org.springframework.boot.autoconfigure.mongo.embedded.EmbeddedMongoProper
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.fu.jafu.AbstractDsl;
+import org.springframework.fu.jafu.FeatureFunction;
 
 /**
  * Jafu DSL for Reactive MongoDB configuration.
@@ -24,23 +25,12 @@ import org.springframework.fu.jafu.AbstractDsl;
  */
 public class ReactiveMongoDsl extends AbstractDsl {
 
-	private final Consumer<ReactiveMongoDsl> dsl;
-
 	private final MongoProperties properties = new MongoProperties();
 
 	private boolean embedded = false;
 
-	ReactiveMongoDsl(Consumer<ReactiveMongoDsl> dsl) {
-		this.dsl = dsl;
-	}
-
-	/**
-	 * Configure Reactive MongoDB support with default properties.
-	 * @see org.springframework.fu.jafu.ConfigurationDsl#enable(ApplicationContextInitializer)
-	 * @see org.springframework.data.mongodb.core.ReactiveMongoTemplate
-	 */
-	public static ApplicationContextInitializer<GenericApplicationContext> reactiveMongo() {
-		return new ReactiveMongoDsl(mongoDsl -> {});
+	private ReactiveMongoDsl(GenericApplicationContext applicationContext) {
+		super(applicationContext);
 	}
 
 	/**
@@ -48,15 +38,23 @@ public class ReactiveMongoDsl extends AbstractDsl {
 	 * @see org.springframework.fu.jafu.ConfigurationDsl#enable(ApplicationContextInitializer)
 	 * @see org.springframework.data.mongodb.core.ReactiveMongoTemplate
 	 */
-	public static ApplicationContextInitializer<GenericApplicationContext> reactiveMongo(Consumer<ReactiveMongoDsl> dsl) {
-		return new ReactiveMongoDsl(dsl);
+	public static FeatureFunction<ReactiveMongoDsl> reactiveMongo() {
+		return FeatureFunction.of(ReactiveMongoDsl::new, ReactiveMongoDsl::afterConfiguration);
+	}
+
+	private void afterConfiguration() {
+		if (this.properties.getUri() == null) {
+			this.properties.setUri(MongoProperties.DEFAULT_URI);
+		}
+		new MongoReactiveDataInitializer(this.properties).initialize(this.applicationContext);
+		new MongoReactiveInitializer(this.properties, this.embedded).initialize(this.applicationContext);
 	}
 
 	/**
 	 * Configure the database uri. By default set to `mongodb://localhost/test`.
 	 */
 	public ReactiveMongoDsl uri(String uri) {
-		properties.setUri(uri);
+		this.properties.setUri(uri);
 		return this;
 	}
 
@@ -66,9 +64,7 @@ public class ReactiveMongoDsl extends AbstractDsl {
 	 * Require {@code de.flapdoodle.embed:de.flapdoodle.embed.mongo} dependency.
 	 */
 	public ReactiveMongoDsl embedded() {
-		new EmbeddedMongoDsl(properties, it -> {}).initialize(context);
-		embedded = true;
-		return this;
+		return embedded(dsl -> {});
 	}
 
 	/**
@@ -77,20 +73,11 @@ public class ReactiveMongoDsl extends AbstractDsl {
 	 * Require {@code de.flapdoodle.embed:de.flapdoodle.embed.mongo} dependency.
 	 */
 	public ReactiveMongoDsl embedded(Consumer<EmbeddedMongoDsl> dsl) {
-		new EmbeddedMongoDsl(properties, dsl).initialize(context);
-		embedded = true;
+		EmbeddedMongoDsl embeddedMongoDsl = new EmbeddedMongoDsl(properties, applicationContext);
+		dsl.accept(embeddedMongoDsl);
+		embeddedMongoDsl.afterConfiguration();
+		this.embedded = true;
 		return this;
-	}
-
-	@Override
-	public void initialize(GenericApplicationContext context) {
-		super.initialize(context);
-		this.dsl.accept(this);
-		if (properties.getUri() == null) {
-			properties.setUri(MongoProperties.DEFAULT_URI);
-		}
-		new MongoReactiveDataInitializer(properties).initialize(context);
-		new MongoReactiveInitializer(properties, embedded).initialize(context);
 	}
 
 	/**
@@ -98,14 +85,12 @@ public class ReactiveMongoDsl extends AbstractDsl {
 	 */
 	public static class EmbeddedMongoDsl extends AbstractDsl {
 
-		private final Consumer<EmbeddedMongoDsl> dsl;
-
 		private final MongoProperties mongoProperties;
 		private final EmbeddedMongoProperties embeddedMongoProperties = new EmbeddedMongoProperties();
 
-		EmbeddedMongoDsl(MongoProperties properties, Consumer<EmbeddedMongoDsl> dsl) {
-			this.dsl = dsl;
-			this.mongoProperties = properties;
+		EmbeddedMongoDsl(MongoProperties mongoProperties, GenericApplicationContext applicationContext) {
+			super(applicationContext);
+			this.mongoProperties = mongoProperties;
 		}
 
 		/**
@@ -116,11 +101,8 @@ public class ReactiveMongoDsl extends AbstractDsl {
 			return this;
 		}
 
-		@Override
-		public void initialize(GenericApplicationContext context) {
-			super.initialize(context);
-			this.dsl.accept(this);
-			new EmbeddedMongoInitializer(mongoProperties, embeddedMongoProperties).initialize(context);
+		void afterConfiguration() {
+			new EmbeddedMongoInitializer(this.mongoProperties, this.embeddedMongoProperties).initialize(applicationContext);
 		}
 
 	}

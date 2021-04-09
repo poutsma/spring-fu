@@ -7,7 +7,6 @@ import java.util.function.Supplier;
 
 import org.springframework.beans.factory.config.BeanDefinitionCustomizer;
 import org.springframework.beans.factory.support.BeanDefinitionReaderUtils;
-import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.web.ResourceProperties;
 import org.springframework.boot.autoconfigure.web.ServerProperties;
 import org.springframework.boot.autoconfigure.web.WebProperties;
@@ -24,6 +23,7 @@ import org.springframework.boot.web.reactive.server.ConfigurableReactiveWebServe
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.fu.jafu.AbstractDsl;
+import org.springframework.fu.jafu.FeatureFunction;
 import org.springframework.fu.jafu.templating.MustacheDsl;
 import org.springframework.fu.jafu.templating.ThymeleafDsl;
 import org.springframework.fu.jafu.web.JacksonDsl;
@@ -52,8 +52,6 @@ import org.springframework.web.server.WebFilter;
 @SuppressWarnings("deprecation")
 public class WebFluxServerDsl extends AbstractDsl {
 
-	private final Consumer<WebFluxServerDsl> dsl;
-
 	private ServerProperties serverProperties = new ServerProperties();
 
 	private ResourceProperties resourceProperties = new ResourceProperties();
@@ -68,17 +66,29 @@ public class WebFluxServerDsl extends AbstractDsl {
 
 	private ConfigurableReactiveWebServerFactory engine = null;
 
-	WebFluxServerDsl(Consumer<WebFluxServerDsl> dsl) {
-		super();
-		this.dsl = dsl;
+	private WebFluxServerDsl(GenericApplicationContext applicationContext) {
+		super(applicationContext);
+	}
+	
+	public static FeatureFunction<WebFluxServerDsl> webFlux() {
+		return FeatureFunction.of(WebFluxServerDsl::new, WebFluxServerDsl::afterConfiguration);
 	}
 
-	public static ApplicationContextInitializer<GenericApplicationContext> webFlux() {
-		return new WebFluxServerDsl(dsl -> {});
-	}
+	private void afterConfiguration() {
+		if (engine == null) {
+			engine = new NettyDelegate().get();
+		}
+		engine.setPort(port);
 
-	public static ApplicationContextInitializer<GenericApplicationContext> webFlux(Consumer<WebFluxServerDsl> dsl) {
-		return new WebFluxServerDsl(dsl);
+		if (!codecsConfigured) {
+			new StringCodecInitializer(false, false).initialize(applicationContext);
+			new ResourceCodecInitializer(false).initialize(applicationContext);
+		}
+		if (applicationContext.containsBeanDefinition("webHandler")) {
+			throw new IllegalStateException("Only one webFlux per application is supported");
+		}
+		new ReactiveWebServerInitializer(serverProperties, resourceProperties, webProperties, webFluxProperties, engine).initialize(applicationContext);
+
 	}
 
 	/**
@@ -103,7 +113,8 @@ public class WebFluxServerDsl extends AbstractDsl {
 	 */
 	public WebFluxServerDsl router(Consumer<RouterFunctions.Builder> routerDsl) {
 		RouterFunctions.Builder builder = RouterFunctions.route();
-		context.registerBean(BeanDefinitionReaderUtils.uniqueBeanName(RouterFunction.class.getName(), context), RouterFunction.class, () -> {
+		applicationContext
+				.registerBean(BeanDefinitionReaderUtils.uniqueBeanName(RouterFunction.class.getName(), applicationContext), RouterFunction.class, () -> {
 			routerDsl.accept(builder);
 			return builder.build();
 		});
@@ -115,7 +126,7 @@ public class WebFluxServerDsl extends AbstractDsl {
 	 * @see WebFluxServerCodecDsl#jackson
 	 */
 	public WebFluxServerDsl codecs(Consumer<WebFluxServerCodecDsl> init) {
-		new WebFluxServerCodecDsl(init).initialize(context);
+		init.accept(new WebFluxServerCodecDsl(applicationContext));
 		this.codecsConfigured = true;
 		return this;
 	}
@@ -124,7 +135,7 @@ public class WebFluxServerDsl extends AbstractDsl {
 	 * Define a request filter for this webFlux
 	 */
 	public WebFluxServerDsl filter(Class<? extends WebFilter> clazz) {
-		context.registerBean(uniqueBeanName(clazz.getName(), context), clazz);
+		applicationContext.registerBean(uniqueBeanName(clazz.getName(), applicationContext), clazz);
 		return this;
 	}
 
@@ -141,7 +152,11 @@ public class WebFluxServerDsl extends AbstractDsl {
 	 * Require {@code org.springframework.boot:spring-boot-starter-thymeleaf} dependency.
 	 */
 	public WebFluxServerDsl thymeleaf(Consumer<ThymeleafDsl> dsl) {
-		new ThymeleafDsl(dsl).initializeReactive(context);
+		FeatureFunction<ThymeleafDsl> feature = ThymeleafDsl.thymeleaf();
+		ThymeleafDsl thymeleafDsl = feature.initialize(this.applicationContext);
+		dsl.accept(thymeleafDsl);
+		feature.afterConfiguration(thymeleafDsl);
+		thymeleafDsl.initializeReactive(applicationContext);
 		return this;
 	}
 
@@ -158,7 +173,7 @@ public class WebFluxServerDsl extends AbstractDsl {
 	 * Require {@code org.springframework.boot:spring-boot-starter-mustache} dependency.
 	 */
 	public WebFluxServerDsl mustache(Consumer<MustacheDsl> dsl) {
-		new MustacheDsl(dsl).initializeReactive(context);
+		new MustacheDsl(dsl).initializeReactive(applicationContext);
 		return this;
 	}
 
@@ -170,35 +185,13 @@ public class WebFluxServerDsl extends AbstractDsl {
 		return (WebFluxServerDsl) super.enable(dsl);
 	}
 
-	@Override
-	public void initialize(GenericApplicationContext context) {
-		super.initialize(context);
-		this.dsl.accept(this);
-		if (engine == null) {
-			engine = new NettyDelegate().get();
-		}
-		engine.setPort(port);
-
-		if (!codecsConfigured) {
-			new StringCodecInitializer(false, false).initialize(context);
-			new ResourceCodecInitializer(false).initialize(context);
-		}
-		if (context.containsBeanDefinition("webHandler")) {
-			throw new IllegalStateException("Only one webFlux per application is supported");
-		}
-		new ReactiveWebServerInitializer(serverProperties, resourceProperties, webProperties, webFluxProperties, engine).initialize(context);
-
-	}
-
 	/**
 	 * Jafu DSL for WebFlux server codecs.
 	 */
 	static public class WebFluxServerCodecDsl extends AbstractDsl {
 
-		private final Consumer<WebFluxServerCodecDsl> dsl;
-
-		WebFluxServerCodecDsl(Consumer<WebFluxServerCodecDsl> dsl) {
-			this.dsl = dsl;
+		WebFluxServerCodecDsl(GenericApplicationContext applicationContext) {
+			super(applicationContext);
 		}
 
 		@Override
@@ -206,17 +199,11 @@ public class WebFluxServerDsl extends AbstractDsl {
 			return (WebFluxServerCodecDsl) super.enable(dsl);
 		}
 
-		@Override
-		public void initialize(GenericApplicationContext context) {
-			super.initialize(context);
-			this.dsl.accept(this);
-		}
-
 		/**
 		 * Enable {@link org.springframework.core.codec.CharSequenceEncoder} and {@link org.springframework.core.codec.StringDecoder} for all media types
 		 */
 		public WebFluxServerCodecDsl string() {
-			new StringCodecInitializer(false, false).initialize(context);
+			new StringCodecInitializer(false, false).initialize(applicationContext);
 			return this;
 		}
 
@@ -224,7 +211,7 @@ public class WebFluxServerDsl extends AbstractDsl {
 		 * Enable {@link org.springframework.core.codec.CharSequenceEncoder} and {@link org.springframework.core.codec.StringDecoder}
 		 */
 		public WebFluxServerCodecDsl string(boolean textPlainOnly) {
-			new StringCodecInitializer(false, textPlainOnly).initialize(context);
+			new StringCodecInitializer(false, textPlainOnly).initialize(applicationContext);
 			return this;
 		}
 
@@ -232,7 +219,7 @@ public class WebFluxServerDsl extends AbstractDsl {
 		 * Enable {@link org.springframework.http.codec.ResourceHttpMessageWriter} and {@link org.springframework.core.codec.ResourceDecoder}
 		 */
 		public WebFluxServerCodecDsl resource() {
-			new ResourceCodecInitializer(false).initialize(context);
+			new ResourceCodecInitializer(false).initialize(applicationContext);
 			return this;
 		}
 
@@ -243,7 +230,7 @@ public class WebFluxServerDsl extends AbstractDsl {
 		 * supports `application/x-protobuf` and `application/octet-stream`.
 		 */
 		public WebFluxServerCodecDsl protobuf() {
-			new ProtobufCodecInitializer(false).initialize(context);
+			new ProtobufCodecInitializer(false).initialize(applicationContext);
 			return this;
 		}
 
@@ -251,7 +238,7 @@ public class WebFluxServerDsl extends AbstractDsl {
 		 * Enable {@link org.springframework.http.codec.FormHttpMessageWriter} and {@link org.springframework.http.codec.FormHttpMessageReader}
 		 */
 		public WebFluxServerCodecDsl form() {
-			new FormCodecInitializer(false).initialize(context);
+			new FormCodecInitializer(false).initialize(applicationContext);
 			return this;
 		}
 
@@ -260,7 +247,7 @@ public class WebFluxServerDsl extends AbstractDsl {
 		 * {@link org.springframework.http.codec.multipart.MultipartHttpMessageReader}
 		 */
 		public WebFluxServerCodecDsl multipart() {
-			new MultipartCodecInitializer(false).initialize(context);
+			new MultipartCodecInitializer(false).initialize(applicationContext);
 			return this;
 		}
 
@@ -279,8 +266,8 @@ public class WebFluxServerDsl extends AbstractDsl {
 		 * (included by default in `spring-boot-starter-webflux`).
 		 */
 		public WebFluxServerCodecDsl jackson(Consumer<JacksonDsl> dsl) {
-			new JacksonDsl(false, dsl).initialize(context);
-			new JacksonJsonCodecInitializer(false).initialize(context);
+			dsl.accept(new JacksonDsl(false, applicationContext));
+			new JacksonJsonCodecInitializer(false).initialize(applicationContext);
 			return this;
 		}
 	}

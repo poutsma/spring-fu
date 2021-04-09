@@ -38,7 +38,7 @@ public class ReactiveRedisDslTests {
         final var application = application(a ->
                 a
                         .beans(b -> b.bean(ReactiveTestRepository.class))
-                        .enable(reactiveRedis(r -> r
+                        .enable(reactiveRedis(), r -> r
                                         .host(REDIS.getHost())
                                         .port(REDIS.getFirstMappedPort())
                                 )

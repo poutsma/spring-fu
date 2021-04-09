@@ -20,7 +20,7 @@ public abstract class Jafu {
 	 * @see #reactiveWebApplication(Consumer)
 	 */
 	public static JafuApplication application(Consumer<ApplicationDsl> dsl) {
-		return new JafuApplication(new ApplicationDsl(dsl)) {
+		return new JafuApplication(new ApplicationDsl(applicationContext, dsl)) {
 			@Override
 			protected ConfigurableApplicationContext createContext() {
 				return new GenericApplicationContext();
@@ -33,7 +33,7 @@ public abstract class Jafu {
 	 * application using Jafu DSL and functional bean registration.
 	 */
 	public static JafuApplication webApplication(Consumer<ApplicationDsl> dsl) {
-		return new JafuApplication(new ApplicationDsl(dsl)) {
+		return new JafuApplication(new ApplicationDsl(applicationContext, dsl)) {
 			@Override
 			protected ConfigurableApplicationContext createContext() {
 				return new ServletWebServerApplicationContext();
@@ -46,7 +46,7 @@ public abstract class Jafu {
 	 * application using Jafu DSL and functional bean registration.
 	 */
 	public static JafuApplication reactiveWebApplication(Consumer<ApplicationDsl> dsl) {
-		return new JafuApplication(new ApplicationDsl(dsl)) {
+		return new JafuApplication(new ApplicationDsl(applicationContext, dsl)) {
 			@Override
 			protected ConfigurableApplicationContext createContext() {
 				return new ReactiveWebServerApplicationContext();

@@ -24,8 +24,8 @@ class ElasticSearchDslTest {
 
         es.start();
         var app = Jafu.application(a ->
-                a.enable(elasticSearch(esDsl ->
-                        esDsl.hostAndPort("localhost:" + es.getFirstMappedPort()))));
+                a.enable(elasticSearch(), esDsl ->
+                        esDsl.hostAndPort("localhost:" + es.getFirstMappedPort())));
 
         var context = app.run();
         var client = context.getBean(RestHighLevelClient.class);

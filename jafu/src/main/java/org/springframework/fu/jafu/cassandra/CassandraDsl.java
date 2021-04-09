@@ -22,6 +22,7 @@ import org.springframework.boot.autoconfigure.data.cassandra.CassandraDataInitia
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.fu.jafu.AbstractDsl;
+import org.springframework.fu.jafu.FeatureFunction;
 
 import java.time.Duration;
 import java.util.List;
@@ -36,29 +37,19 @@ import java.util.function.Consumer;
 
 public class CassandraDsl extends AbstractDsl {
 
-    private final Consumer<CassandraDsl> dsl;
-
     private final CassandraProperties properties = new CassandraProperties();
 
-    public CassandraDsl(Consumer<CassandraDsl> dsl) {
-        this.dsl = dsl;
+    private CassandraDsl(GenericApplicationContext applicationContext) {
+        super(applicationContext);
     }
 
-    @Override
-    public void initialize(GenericApplicationContext context) {
-        super.initialize(context);
-        this.dsl.accept(this);
-        new CassandraInitializer(this.properties).initialize(context);
-        new CassandraDataInitializer(this.properties).initialize(context);
+    public static FeatureFunction<CassandraDsl> cassandra() {
+        return FeatureFunction.of(CassandraDsl::new, CassandraDsl::afterConfiguration);
     }
 
-    public static ApplicationContextInitializer<GenericApplicationContext> cassandra() {
-        return new CassandraDsl(mongoDsl -> {
-        });
-    }
-
-    public static ApplicationContextInitializer<GenericApplicationContext> cassandra(Consumer<CassandraDsl> dsl) {
-        return new CassandraDsl(dsl);
+    private void afterConfiguration() {
+        new CassandraInitializer(this.properties).initialize(this.applicationContext);
+        new CassandraDataInitializer(this.properties).initialize(this.applicationContext);
     }
 
     public CassandraDsl keyspaceName(String keyspaceName) {
@@ -136,12 +127,12 @@ public class CassandraDsl extends AbstractDsl {
         }
 
         public ConnectionDsl connectTimeout(Duration connectTimeout) {
-            connection.setConnectTimeout(connectTimeout);
+            this.connection.setConnectTimeout(connectTimeout);
             return this;
         }
 
         public ConnectionDsl initQueryTimeout(Duration initQueryTimeout) {
-            connection.setInitQueryTimeout(initQueryTimeout);
+            this.connection.setInitQueryTimeout(initQueryTimeout);
             return this;
         }
     }

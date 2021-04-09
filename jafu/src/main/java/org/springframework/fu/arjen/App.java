@@ -6,8 +6,10 @@ import java.util.function.Consumer;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.web.ResourceProperties;
 import org.springframework.boot.autoconfigure.web.ServerProperties;
+import org.springframework.boot.autoconfigure.web.WebProperties;
 import org.springframework.boot.autoconfigure.web.servlet.ServletWebServerInitializer;
 import org.springframework.boot.autoconfigure.web.servlet.WebMvcProperties;
+import org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactory;
 import org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextInitializer;
@@ -47,7 +49,7 @@ public class App implements ApplicationContextInitializer<GenericApplicationCont
 
 	@Override
 	public void initialize(GenericApplicationContext applicationContext) {
-		new ServletWebServerInitializer(new ServerProperties(), new WebMvcProperties(), new ResourceProperties()).initialize(applicationContext);
+		new ServletWebServerInitializer(new ServerProperties(), new WebMvcProperties(), new ResourceProperties(), new WebProperties(), new TomcatServletWebServerFactory()).initialize(applicationContext);
 		this.consumer.accept(new AppDsl(applicationContext));
 	}
 }

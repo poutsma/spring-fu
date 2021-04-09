@@ -4,6 +4,7 @@ import java.util.function.Consumer;
 
 import org.springframework.boot.autoconfigure.context.MessageSourceInitializer;
 import org.springframework.context.support.GenericApplicationContext;
+import org.springframework.fu.arjen.App;
 
 /**
  * Jafu top level DSL for application which allows to configure a Spring Boot
@@ -14,18 +15,19 @@ import org.springframework.context.support.GenericApplicationContext;
  */
 public class ApplicationDsl extends ConfigurationDsl {
 
-	private final Consumer<ApplicationDsl> dsl;
-
-	ApplicationDsl(Consumer<ApplicationDsl> dsl) {
-		super(configurationDsl -> {});
-		this.dsl = dsl;
+	ApplicationDsl(GenericApplicationContext context) {
+		super(context);
 	}
 
 	@Override
-	public void initialize(GenericApplicationContext context) {
-		super.initialize(context);
-		this.dsl.accept(this);
-		new MessageSourceInitializer().initialize(context);
+	public <T> ApplicationDsl enable(FeatureFunction<T> feature) {
+		super.enable(feature);
+		return this;
 	}
 
+	@Override
+	public <T> ApplicationDsl enable(FeatureFunction<T> feature, Consumer<T> configuration) {
+		super.enable(feature, configuration);
+		return this;
+	}
 }

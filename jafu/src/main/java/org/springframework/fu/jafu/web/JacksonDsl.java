@@ -2,7 +2,6 @@ package org.springframework.fu.jafu.web;
 
 import java.util.Locale;
 import java.util.TimeZone;
-import java.util.function.Consumer;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -18,6 +17,7 @@ import org.springframework.boot.autoconfigure.jackson.JacksonProperties;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.fu.jafu.AbstractDsl;
+import org.springframework.fu.jafu.FeatureFunction;
 
 /**
  * Jafu DSL for <a href="https://github.com/FasterXML/jackson">Jackson</a> serialization library.
@@ -31,26 +31,20 @@ public class JacksonDsl extends AbstractDsl {
 
 	private final boolean isClientCodec;
 
-	private final Consumer<JacksonDsl> dsl;
-
 	private final JacksonProperties properties = new JacksonProperties();
 
-
-	public JacksonDsl(boolean isClientCodec, Consumer<JacksonDsl> dsl) {
+	private JacksonDsl(boolean isClientCodec, GenericApplicationContext applicationContext) {
+		super(applicationContext);
 		this.isClientCodec = isClientCodec;
-		this.dsl = dsl;
 	}
 
-	@Override
-	public JacksonDsl enable(ApplicationContextInitializer<GenericApplicationContext> dsl) {
-		return (JacksonDsl) super.enable(dsl);
+	public static FeatureFunction<JacksonDsl> jackson(boolean isClientCodec) {
+		return FeatureFunction.of(context -> new JacksonDsl(isClientCodec, context),
+				JacksonDsl::afterConfiguration);
 	}
 
-	@Override
-	public void initialize(GenericApplicationContext context) {
-		super.initialize(context);
-		this.dsl.accept(this);
-		new JacksonInitializer(properties).initialize(context);
+	private void afterConfiguration() {
+		new JacksonInitializer(properties).initialize(this.applicationContext);
 	}
 
 	/**

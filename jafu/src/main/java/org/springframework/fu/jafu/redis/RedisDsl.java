@@ -5,6 +5,7 @@ import org.springframework.boot.autoconfigure.data.redis.RedisInitializer;
 import org.springframework.boot.autoconfigure.data.redis.RedisProperties;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.support.GenericApplicationContext;
+import org.springframework.fu.jafu.FeatureFunction;
 
 import java.util.function.Consumer;
 
@@ -15,8 +16,8 @@ import java.util.function.Consumer;
  */
 public class RedisDsl extends AbstractRedisDsl<RedisDsl> {
 
-    public RedisDsl(final Consumer<RedisDsl> dsl) {
-        super(dsl);
+    private RedisDsl(GenericApplicationContext context) {
+        super(context);
     }
 
     public RedisDsl jedis() {
@@ -35,13 +36,12 @@ public class RedisDsl extends AbstractRedisDsl<RedisDsl> {
         return this;
     }
 
-    public static ApplicationContextInitializer<GenericApplicationContext> redis() {
-        return new RedisDsl(dsl -> {
-        });
+    public static FeatureFunction<RedisDsl> redis() {
+        return FeatureFunction.of(RedisDsl::new, RedisDsl::afterConfiguration);
     }
 
-    public static ApplicationContextInitializer<GenericApplicationContext> redis(final Consumer<RedisDsl> dsl) {
-        return new RedisDsl(dsl);
+    private void afterConfiguration() {
+        new RedisInitializer().initialize(applicationContext);
     }
 
     public static class JedisDsl {
@@ -59,11 +59,4 @@ public class RedisDsl extends AbstractRedisDsl<RedisDsl> {
         }
 
     }
-
-    @Override
-    public void initialize(GenericApplicationContext context) {
-        super.initialize(context);
-        new RedisInitializer().initialize(context);
-    }
-
 }

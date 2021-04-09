@@ -5,6 +5,7 @@ import java.util.function.Supplier;
 
 import org.springframework.beans.factory.config.BeanDefinitionCustomizer;
 import org.springframework.beans.factory.support.BeanDefinitionReaderUtils;
+import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.web.ResourceProperties;
 import org.springframework.boot.autoconfigure.web.ServerProperties;
 import org.springframework.boot.autoconfigure.web.WebProperties;
@@ -24,6 +25,7 @@ import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.fu.jafu.AbstractDsl;
+import org.springframework.fu.jafu.FeatureFunction;
 import org.springframework.fu.jafu.templating.MustacheDsl;
 import org.springframework.fu.jafu.templating.ThymeleafDsl;
 import org.springframework.fu.jafu.web.JacksonDsl;
@@ -47,8 +49,6 @@ import org.springframework.web.servlet.function.RouterFunctions;
  */
 public class WebMvcServerDsl extends AbstractDsl {
 
-	private final Consumer<WebMvcServerDsl> dsl;
-
 	private ServerProperties serverProperties = new ServerProperties();
 
 	private ResourceProperties resourceProperties = new ResourceProperties();
@@ -63,17 +63,32 @@ public class WebMvcServerDsl extends AbstractDsl {
 
 	private int port = 8080;
 
-	WebMvcServerDsl(Consumer<WebMvcServerDsl> dsl) {
-		super();
-		this.dsl = dsl;
+	private WebMvcServerDsl(GenericApplicationContext applicationContext) {
+		super(applicationContext);
 	}
 
-	public static ApplicationContextInitializer<GenericApplicationContext> webMvc() {
-		return new WebMvcServerDsl(dsl -> {});
+	public static FeatureFunction<WebMvcServerDsl> webMvc() {
+		return FeatureFunction.of(WebMvcServerDsl::new, WebMvcServerDsl::afterConfiguration);
 	}
 
-	public static ApplicationContextInitializer<GenericApplicationContext> webMvc(Consumer<WebMvcServerDsl> dsl) {
-		return new WebMvcServerDsl(dsl);
+	private void afterConfiguration() {
+		applicationContext.registerBean(BeanDefinitionReaderUtils.uniqueBeanName(RouterFunction.class.getName(), applicationContext), RouterFunction.class, () ->
+				RouterFunctions.route().resources("/**", new ClassPathResource("static/")).build()
+		);
+		serverProperties.setPort(port);
+		if (engine == null) {
+			engine = new TomcatDelegate().get();
+		}
+		engine.setPort(port);
+		serverProperties.getServlet().setRegisterDefaultServlet(false);
+		if (!convertersConfigured) {
+			new StringConverterInitializer().initialize(applicationContext);
+			new ResourceConverterInitializer().initialize(applicationContext);
+		}
+		if (applicationContext.containsBeanDefinition("webHandler")) {
+			throw new IllegalStateException("Only one webFlux per application is supported");
+		}
+		new ServletWebServerInitializer(serverProperties, webMvcProperties, resourceProperties, webProperties, engine).initialize(applicationContext);
 	}
 
 	/**
@@ -114,7 +129,8 @@ public class WebMvcServerDsl extends AbstractDsl {
 	 */
 	public WebMvcServerDsl router(Consumer<RouterFunctions.Builder> routerDsl) {
 		RouterFunctions.Builder builder = RouterFunctions.route();
-		context.registerBean(BeanDefinitionReaderUtils.uniqueBeanName(RouterFunction.class.getName(), context), RouterFunction.class, () -> {
+		applicationContext
+				.registerBean(BeanDefinitionReaderUtils.uniqueBeanName(RouterFunction.class.getName(), applicationContext), RouterFunction.class, () -> {
 			routerDsl.accept(builder);
 			return builder.build();
 		});
@@ -126,7 +142,7 @@ public class WebMvcServerDsl extends AbstractDsl {
 	 * @see WebMvcServerConverterDsl#jackson
 	 */
 	public WebMvcServerDsl converters(Consumer<WebMvcServerConverterDsl> init) {
-		new WebMvcServerConverterDsl(init).initialize(context);
+		init.accept(new WebMvcServerConverterDsl(applicationContext));
 		this.convertersConfigured = true;
 		return this;
 	}
@@ -135,32 +151,20 @@ public class WebMvcServerDsl extends AbstractDsl {
 	 * Enable an external codec.
 	 */
 	@Override
-	public WebMvcServerDsl enable(ApplicationContextInitializer<GenericApplicationContext> dsl) {
-		return (WebMvcServerDsl) super.enable(dsl);
+	public <T> WebMvcServerDsl enable(FeatureFunction<T> feature) {
+		super.enable(feature);
+		return this;
 	}
 
+	/**
+	 * Enable an external codec.
+	 */
 	@Override
-	public void initialize(GenericApplicationContext context) {
-		super.initialize(context);
-		this.dsl.accept(this);
-		context.registerBean(BeanDefinitionReaderUtils.uniqueBeanName(RouterFunction.class.getName(), context), RouterFunction.class, () ->
-			RouterFunctions.route().resources("/**", new ClassPathResource("static/")).build()
-		);
-		serverProperties.setPort(port);
-		if (engine == null) {
-			engine = new TomcatDelegate().get();
-		}
-		engine.setPort(port);
-		serverProperties.getServlet().setRegisterDefaultServlet(false);
-		if (!convertersConfigured) {
-			new StringConverterInitializer().initialize(context);
-			new ResourceConverterInitializer().initialize(context);
-		}
-		if (context.containsBeanDefinition("webHandler")) {
-			throw new IllegalStateException("Only one webFlux per application is supported");
-		}
-		new ServletWebServerInitializer(serverProperties, webMvcProperties, resourceProperties, webProperties, engine).initialize(context);
+	protected <T> WebMvcServerDsl enable(FeatureFunction<T> feature, Consumer<T> configuration) {
+		super.enable(feature, configuration);
+		return this;
 	}
+
 
 	private class TomcatDelegate implements Supplier<ConfigurableServletWebServerFactory> {
 		@Override
@@ -187,7 +191,8 @@ public class WebMvcServerDsl extends AbstractDsl {
 	 * @see #thymeleaf(Consumer)
 	 */
 	public WebMvcServerDsl thymeleaf() {
-		return thymeleaf(dsl -> {});
+		thymeleaf(dsl -> {});
+		return this;
 	}
 
 	/**
@@ -196,7 +201,7 @@ public class WebMvcServerDsl extends AbstractDsl {
 	 * Require {@code org.springframework.boot:spring-boot-starter-thymeleaf} dependency.
 	 */
 	public WebMvcServerDsl thymeleaf(Consumer<ThymeleafDsl> dsl) {
-		new ThymeleafDsl(dsl).initializeServlet(context);
+		enable(ThymeleafDsl.thymeleaf(WebApplicationType.SERVLET), dsl);
 		return this;
 	}
 
@@ -213,7 +218,7 @@ public class WebMvcServerDsl extends AbstractDsl {
 	 * Require {@code org.springframework.boot:spring-boot-starter-mustache} dependency.
 	 */
 	public WebMvcServerDsl mustache(Consumer<MustacheDsl> dsl) {
-		new MustacheDsl(dsl).initializeServlet(context);
+		enable(MustacheDsl.mustache(WebApplicationType.SERVLET), dsl);
 		return this;
 	}
 
@@ -223,28 +228,27 @@ public class WebMvcServerDsl extends AbstractDsl {
 	 */
 	static public class WebMvcServerConverterDsl extends AbstractDsl {
 
-		private final Consumer<WebMvcServerConverterDsl> dsl;
-
-		WebMvcServerConverterDsl(Consumer<WebMvcServerConverterDsl> dsl) {
-			this.dsl = dsl;
+		WebMvcServerConverterDsl(GenericApplicationContext applicationContext) {
+			super(applicationContext);
 		}
 
 		@Override
-		public WebMvcServerConverterDsl enable(ApplicationContextInitializer<GenericApplicationContext> dsl) {
-			return (WebMvcServerConverterDsl) super.enable(dsl);
+		public <T> WebMvcServerConverterDsl enable(FeatureFunction<T> feature) {
+			super.enable(feature);
+			return this;
 		}
 
 		@Override
-		public void initialize(GenericApplicationContext context) {
-			super.initialize(context);
-			this.dsl.accept(this);
+		public  <T> WebMvcServerConverterDsl enable(FeatureFunction<T> feature, Consumer<T> configuration) {
+			super.enable(feature, configuration);
+			return this;
 		}
 
 		/**
 		 * Enable {@link org.springframework.http.converter.StringHttpMessageConverter} for all media types
 		 */
 		public WebMvcServerConverterDsl string() {
-			new StringConverterInitializer().initialize(context);
+			new StringConverterInitializer().initialize(this.applicationContext);
 			return this;
 		}
 
@@ -252,7 +256,7 @@ public class WebMvcServerDsl extends AbstractDsl {
 		 * Enable {@link org.springframework.http.converter.ResourceHttpMessageConverter} and {@link org.springframework.http.converter.ResourceRegionHttpMessageConverter}
 		 */
 		public WebMvcServerConverterDsl resource() {
-			new ResourceConverterInitializer().initialize(context);
+			new ResourceConverterInitializer().initialize(applicationContext);
 			return this;
 		}
 
@@ -260,7 +264,7 @@ public class WebMvcServerDsl extends AbstractDsl {
 		 * Enable {@link org.springframework.http.converter.support.AllEncompassingFormHttpMessageConverter}
 		 */
 		public WebMvcServerConverterDsl form() {
-			new FormConverterInitializer().initialize(context);
+			new FormConverterInitializer().initialize(applicationContext);
 			return this;
 		}
 
@@ -268,7 +272,8 @@ public class WebMvcServerDsl extends AbstractDsl {
 		 * @see #jackson(Consumer)
 		 */
 		public WebMvcServerConverterDsl jackson() {
-			return jackson(dsl -> {});
+			jackson(dsl -> {});
+			return this;
 		}
 
 		/**
@@ -279,8 +284,8 @@ public class WebMvcServerDsl extends AbstractDsl {
 		 * (included by default in `spring-boot-starter-web`).
 		 */
 		public WebMvcServerConverterDsl jackson(Consumer<JacksonDsl> dsl) {
-			new JacksonDsl(false, dsl).initialize(context);
-			new JacksonJsonConverterInitializer().initialize(context);
+			enable(JacksonDsl.jackson(false), dsl);
+			new JacksonJsonConverterInitializer().initialize(applicationContext);
 			return this;
 		}
 
@@ -288,7 +293,7 @@ public class WebMvcServerDsl extends AbstractDsl {
 		 * Enable {@link org.springframework.http.converter.feed.AtomFeedHttpMessageConverter}
 		 */
 		public WebMvcServerConverterDsl  atom() {
-			new AtomConverterInitializer().initialize(context);
+			new AtomConverterInitializer().initialize(applicationContext);
 			return this;
 		}
 
@@ -296,7 +301,7 @@ public class WebMvcServerDsl extends AbstractDsl {
 		 * Enable {@link org.springframework.http.converter.feed.RssChannelHttpMessageConverter}
 		 */
 		public WebMvcServerConverterDsl  rss() {
-			new RssConverterInitializer().initialize(context);
+			new RssConverterInitializer().initialize(applicationContext);
 			return this;
 		}
 	}

@@ -16,18 +16,16 @@ import org.springframework.context.support.GenericApplicationContext;
  */
 public class BeanDefinitionDsl extends AbstractDsl {
 
-	private final Consumer<BeanDefinitionDsl> dsl;
-
-	BeanDefinitionDsl(Consumer<BeanDefinitionDsl> dsl) {
-		this.dsl = dsl;
+	BeanDefinitionDsl(GenericApplicationContext context) {
+		super(context);
 	}
 
 	/**
 	 * Declare a bean definition from the given bean class.
 	 */
 	public <T> BeanDefinitionDsl bean(Class<T> beanClass, BeanDefinitionCustomizer... customizers) {
-		String beanName = BeanDefinitionReaderUtils.uniqueBeanName(beanClass.getName(), context);
-		this.context.registerBean(beanName, beanClass, customizers);
+		String beanName = BeanDefinitionReaderUtils.uniqueBeanName(beanClass.getName(), applicationContext);
+		this.applicationContext.registerBean(beanName, beanClass, customizers);
 		return this;
 	}
 
@@ -35,7 +33,7 @@ public class BeanDefinitionDsl extends AbstractDsl {
 	 * Declare a bean definition from the given bean name and class.
 	 */
 	public <T> BeanDefinitionDsl bean(String beanName, Class<T> beanClass, BeanDefinitionCustomizer... customizers) {
-		this.context.registerBean(beanName, beanClass);
+		this.applicationContext.registerBean(beanName, beanClass);
 		return this;
 	}
 
@@ -43,8 +41,8 @@ public class BeanDefinitionDsl extends AbstractDsl {
 	 * Declare a bean definition from the given bean class and supplier.
 	 */
 	public <T> BeanDefinitionDsl bean(Class<T> beanClass, Supplier<T> supplier, BeanDefinitionCustomizer... customizers) {
-		String beanName = BeanDefinitionReaderUtils.uniqueBeanName(beanClass.getName(), context);
-		this.context.registerBean(beanName, beanClass, supplier, customizers);
+		String beanName = BeanDefinitionReaderUtils.uniqueBeanName(beanClass.getName(), applicationContext);
+		this.applicationContext.registerBean(beanName, beanClass, supplier, customizers);
 		return this;
 	}
 
@@ -52,13 +50,8 @@ public class BeanDefinitionDsl extends AbstractDsl {
 	 * Declare a bean definition from the given bean name, class and supplier.
 	 */
 	public <T> BeanDefinitionDsl bean(String beanName, Class<T> beanClass, Supplier<T> supplier, BeanDefinitionCustomizer... customizers) {
-		this.context.registerBean(beanName, beanClass, supplier, customizers);
+		this.applicationContext.registerBean(beanName, beanClass, supplier, customizers);
 		return this;
 	}
 
-	@Override
-	public void initialize(GenericApplicationContext context) {
-		super.initialize(context);
-		this.dsl.accept(this);
-	}
 }

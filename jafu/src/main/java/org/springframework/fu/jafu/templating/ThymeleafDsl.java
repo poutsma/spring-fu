@@ -1,11 +1,13 @@
 package org.springframework.fu.jafu.templating;
 
+import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.thymeleaf.ThymeleafInitializer;
 import org.springframework.boot.autoconfigure.thymeleaf.ThymeleafProperties;
 import org.springframework.boot.autoconfigure.thymeleaf.ThymeleafReactiveWebInitializer;
 import org.springframework.boot.autoconfigure.thymeleaf.ThymeleafServletWebInitializer;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.fu.jafu.AbstractDsl;
+import org.springframework.fu.jafu.FeatureFunction;
 
 import java.util.function.Consumer;
 
@@ -20,12 +22,24 @@ import java.util.function.Consumer;
  */
 public class ThymeleafDsl extends AbstractDsl {
 
-	private final Consumer<ThymeleafDsl> dsl;
+	private final ThymeleafProperties properties = new ThymeleafProperties();
 
-	protected final ThymeleafProperties properties = new ThymeleafProperties();
+	private ThymeleafDsl(GenericApplicationContext applicationContext) {
+		super(applicationContext);
+	}
 
-	public ThymeleafDsl(Consumer<ThymeleafDsl> dsl) {
-		this.dsl = dsl;
+	public static FeatureFunction<ThymeleafDsl> thymeleaf(WebApplicationType type) {
+		return FeatureFunction.of(ThymeleafDsl::new, dsl -> dsl.afterConfiguration(type));
+	}
+
+	private void afterConfiguration(WebApplicationType type) {
+		new ThymeleafInitializer(this.properties).initialize(this.applicationContext);
+		if (type == WebApplicationType.SERVLET) {
+			new ThymeleafServletWebInitializer(this.properties).initialize(this.applicationContext);
+		}
+		else if (type == WebApplicationType.REACTIVE) {
+			new ThymeleafReactiveWebInitializer(this.properties).initialize(this.applicationContext);
+		}
 	}
 
 	/**
@@ -42,23 +56,6 @@ public class ThymeleafDsl extends AbstractDsl {
 	public ThymeleafDsl suffix(String suffix) {
 		this.properties.setSuffix(suffix);
 		return this;
-	}
-
-	public void initializeServlet(GenericApplicationContext context) {
-		this.initialize(context);
-		new ThymeleafServletWebInitializer(properties).initialize(context);
-	}
-
-	public void initializeReactive(GenericApplicationContext context) {
-		this.initialize(context);
-		new ThymeleafReactiveWebInitializer(properties).initialize(context);
-	}
-
-	@Override
-	public void initialize(GenericApplicationContext context) {
-		super.initialize(context);
-		this.dsl.accept(this);
-		new ThymeleafInitializer(properties).initialize(context);
 	}
 
 }
