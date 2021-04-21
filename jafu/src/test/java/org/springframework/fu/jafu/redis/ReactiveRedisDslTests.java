@@ -42,7 +42,6 @@ public class ReactiveRedisDslTests {
                                         .host(REDIS.getHost())
                                         .port(REDIS.getFirstMappedPort())
                                 )
-                        )
         );
 
         try (var context = application.run()) {

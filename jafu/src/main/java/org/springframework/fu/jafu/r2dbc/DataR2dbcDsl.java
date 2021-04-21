@@ -19,14 +19,8 @@ public class DataR2dbcDsl extends AbstractDsl {
     }
 
     public DataR2dbcDsl r2dbc(Consumer<R2dbcDsl> r2dbcDsl) {
-        new R2dbcDsl(r2dbcDsl).initialize(applicationContext);
+        enable(R2dbcDsl.r2dbc(), r2dbcDsl);
         return this;
     }
 
-    @Override
-    public void initialize(GenericApplicationContext context) {
-        super.initialize(context);
-        dsl.accept(this);
-        new R2dbcDataInitializer().initialize(context);
-    }
 }

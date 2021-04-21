@@ -126,9 +126,8 @@ class WebServerDslTests {
 				a.enable(webFlux(s -> s.port(0)
 				.codecs(c -> c.string().jackson())
 				.router(r -> r.GET("/", request -> noContent().build()))))
-				.enable(ReactiveMongoDsl.reactiveMongo())
 			.logging(l -> l.level(LogLevel.DEBUG))
-			.
+			.enable(ReactiveMongoDsl.reactiveMongo()));
 		var context = app.run();
 		var port = context.getEnvironment().getProperty("local.server.port");
 		var client = WebTestClient.bindToServer().baseUrl("http://127.0.0.1:" + port).build();

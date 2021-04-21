@@ -6,6 +6,7 @@ import org.springframework.boot.autoconfigure.r2dbc.R2dbcProperties;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.fu.jafu.AbstractDsl;
+import org.springframework.fu.jafu.FeatureFunction;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,20 +19,23 @@ import java.util.function.Consumer;
  */
 public class R2dbcDsl extends AbstractDsl {
 
-    private final Consumer<R2dbcDsl> dsl;
-
     private final R2dbcProperties properties = new R2dbcProperties();
 
     private final List<ConnectionFactoryOptionsBuilderCustomizer> optionsCustomizers = new ArrayList<>();
 
     private boolean transactional = false;
 
-    R2dbcDsl(Consumer<R2dbcDsl> dsl) {
-        this.dsl = dsl;
+    private R2dbcDsl(GenericApplicationContext applicationContext) {
+        super(applicationContext);
     }
 
-    public static ApplicationContextInitializer<GenericApplicationContext> r2dbc(Consumer<R2dbcDsl> dsl) {
-        return new R2dbcDsl(dsl);
+    public static FeatureFunction<R2dbcDsl> r2dbc() {
+        return FeatureFunction.of(R2dbcDsl::new, R2dbcDsl::afterConfiguration);
+    }
+
+    private void afterConfiguration() {
+        new R2dbcInitializer(this.properties, this.optionsCustomizers, this.transactional)
+            .initialize(this.applicationContext);
     }
 
     public R2dbcDsl url(String url){
@@ -67,12 +71,5 @@ public class R2dbcDsl extends AbstractDsl {
     public R2dbcDsl transactional(boolean transactional) {
         this.transactional = transactional;
         return this;
-    }
-
-    @Override
-    public void initialize(GenericApplicationContext context) {
-        super.initialize(context);
-        this.dsl.accept(this);
-        new R2dbcInitializer(properties, optionsCustomizers, transactional).initialize(context);
     }
 }

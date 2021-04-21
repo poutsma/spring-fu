@@ -72,25 +72,12 @@ public class WebFluxClientDsl extends AbstractDsl {
 	}
 
 	/**
-	 * Enable an external codec.
-	 */
-	@Override
-	public WebFluxClientDsl enable(ApplicationContextInitializer<GenericApplicationContext> dsl) {
-		return (WebFluxClientDsl) super.enable(dsl);
-	}
-
-	/**
 	 * Jafu DSL for WebFlux webClient codecs.
 	 */
 	static public class WebFluxClientCodecDsl extends AbstractDsl {
 
 		WebFluxClientCodecDsl(GenericApplicationContext applicationContext) {
 			super(applicationContext);
-		}
-
-		@Override
-		public WebFluxClientCodecDsl enable(ApplicationContextInitializer<GenericApplicationContext> dsl) {
-			return (WebFluxClientCodecDsl) super.enable(dsl);
 		}
 
 		/**
@@ -161,8 +148,7 @@ public class WebFluxClientDsl extends AbstractDsl {
 		 * (included by default in `spring-boot-starter-webflux`).
 		 */
 		public WebFluxClientCodecDsl jackson(Consumer<JacksonDsl> dsl) {
-			new JacksonJsonCodecInitializer(true).initialize(applicationContext);
-			dsl.accept(new JacksonDsl(true, applicationContext));
+			enable(JacksonDsl.jackson(true), dsl);
 			return this;
 		}
 	}

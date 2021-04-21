@@ -7,6 +7,7 @@ import java.util.function.Supplier;
 
 import org.springframework.beans.factory.config.BeanDefinitionCustomizer;
 import org.springframework.beans.factory.support.BeanDefinitionReaderUtils;
+import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.web.ResourceProperties;
 import org.springframework.boot.autoconfigure.web.ServerProperties;
 import org.springframework.boot.autoconfigure.web.WebProperties;
@@ -152,11 +153,7 @@ public class WebFluxServerDsl extends AbstractDsl {
 	 * Require {@code org.springframework.boot:spring-boot-starter-thymeleaf} dependency.
 	 */
 	public WebFluxServerDsl thymeleaf(Consumer<ThymeleafDsl> dsl) {
-		FeatureFunction<ThymeleafDsl> feature = ThymeleafDsl.thymeleaf();
-		ThymeleafDsl thymeleafDsl = feature.initialize(this.applicationContext);
-		dsl.accept(thymeleafDsl);
-		feature.afterConfiguration(thymeleafDsl);
-		thymeleafDsl.initializeReactive(applicationContext);
+		enable(ThymeleafDsl.thymeleaf(WebApplicationType.SERVLET), dsl);
 		return this;
 	}
 
@@ -173,16 +170,8 @@ public class WebFluxServerDsl extends AbstractDsl {
 	 * Require {@code org.springframework.boot:spring-boot-starter-mustache} dependency.
 	 */
 	public WebFluxServerDsl mustache(Consumer<MustacheDsl> dsl) {
-		new MustacheDsl(dsl).initializeReactive(applicationContext);
+		enable(MustacheDsl.mustache(WebApplicationType.SERVLET), dsl);
 		return this;
-	}
-
-	/**
-	 * Enable an external codec.
-	 */
-	@Override
-	public WebFluxServerDsl enable(ApplicationContextInitializer<GenericApplicationContext> dsl) {
-		return (WebFluxServerDsl) super.enable(dsl);
 	}
 
 	/**
@@ -192,11 +181,6 @@ public class WebFluxServerDsl extends AbstractDsl {
 
 		WebFluxServerCodecDsl(GenericApplicationContext applicationContext) {
 			super(applicationContext);
-		}
-
-		@Override
-		public WebFluxServerCodecDsl enable(ApplicationContextInitializer<GenericApplicationContext> dsl) {
-			return (WebFluxServerCodecDsl) super.enable(dsl);
 		}
 
 		/**
@@ -266,8 +250,7 @@ public class WebFluxServerDsl extends AbstractDsl {
 		 * (included by default in `spring-boot-starter-webflux`).
 		 */
 		public WebFluxServerCodecDsl jackson(Consumer<JacksonDsl> dsl) {
-			dsl.accept(new JacksonDsl(false, applicationContext));
-			new JacksonJsonCodecInitializer(false).initialize(applicationContext);
+			enable(JacksonDsl.jackson(false), dsl);
 			return this;
 		}
 	}

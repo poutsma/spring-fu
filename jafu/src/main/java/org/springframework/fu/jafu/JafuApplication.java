@@ -20,12 +20,13 @@ import org.springframework.core.SpringProperties;
  */
 public abstract class JafuApplication {
 
-	private final ApplicationContextInitializer<GenericApplicationContext> initializer;
+	private final Consumer<ApplicationDsl> applicationDslConsumer;
 
 	private ApplicationContextInitializer<GenericApplicationContext> customizer;
 
-	protected JafuApplication(ApplicationContextInitializer<GenericApplicationContext> initializer) {
-		this.initializer = initializer;
+	protected JafuApplication(
+			Consumer<ApplicationDsl> applicationDslConsumer) {
+		this.applicationDslConsumer = applicationDslConsumer;
 		SpringProperties.setFlag("spring.xml.ignore");
 		SpringProperties.setFlag("spring.spel.ignore");
 		SpringProperties.setProperty("server.servlet.register-default-servlet", "false");
@@ -92,17 +93,21 @@ public abstract class JafuApplication {
 		if (!profiles.isEmpty()) {
 			app.setAdditionalProfiles(Arrays.stream(profiles.split(",")).map(it -> it.trim()).toArray(String[]::new));
 		}
-		app.addInitializers(this.initializer);
+		app.addInitializers(applicationContextInitializer());
 		if (this.customizer != null) app.addInitializers(this.customizer);
 		System.setProperty("spring.backgroundpreinitializer.ignore", "true");
 		return app.run(args);
+	}
+
+	private ApplicationContextInitializer<GenericApplicationContext> applicationContextInitializer() {
+		return applicationContext -> this.applicationDslConsumer.accept(new ApplicationDsl(applicationContext));
 	}
 
 	/**
 	 * Customize an existing application for testing, mocking, etc.
 	 */
 	public JafuApplication customize(Consumer<ApplicationDsl> customizer) {
-		this.customizer = new ApplicationDsl(customizer);
+		this.customizer = applicationContext -> customizer.accept(new ApplicationDsl(applicationContext));
 		return this;
 	}
 
