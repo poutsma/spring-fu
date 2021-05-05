@@ -14,9 +14,9 @@ public class MustacheDslTests {
 	@Test
 	void createAndRequestAMustacheView() {
 		var app = webApplication(a -> a.enable(
-				webMvc(
+				webMvc(),
 						s -> s.port(0).mustache().router(
-						r -> r.GET("/view", request -> ok().render("template", Collections.singletonMap("name", "world")))))));
+						r -> r.GET("/view", request -> ok().render("template", Collections.singletonMap("name", "world"))))));
 
 		var context = app.run();
 		var port = context.getEnvironment().getProperty("local.server.port");

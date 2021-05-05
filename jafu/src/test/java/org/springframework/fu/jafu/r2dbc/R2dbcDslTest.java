@@ -30,7 +30,7 @@ class R2dbcDslTest {
         Files.createFile(dbPath);
 
         var app = application(a -> {
-            a.enable(r2dbc(r2dbcDsl -> r2dbcDsl.url("r2dbc:h2:file:///" + dbPath.toAbsolutePath())));
+            a.enable(r2dbc(), r2dbcDsl -> r2dbcDsl.url("r2dbc:h2:file:///" + dbPath.toAbsolutePath()));
             a.beans(beans -> beans.bean(R2dbcTestDataRepository.class));
         });
 
@@ -52,10 +52,10 @@ class R2dbcDslTest {
         Files.createFile(dbPath);
 
         var app = application(a -> {
-            a.enable(r2dbc(r2dbcDsl -> {
+            a.enable(r2dbc(), r2dbcDsl -> {
                 r2dbcDsl.url("r2dbc:h2:file:///" + dbPath.toAbsolutePath());
                 r2dbcDsl.transactional(true);
-            }));
+            });
             a.beans(beans -> beans.bean(R2dbcTestDataRepository.class));
         });
 
@@ -84,11 +84,11 @@ class R2dbcDslTest {
         pg.start();
 
         var app = application(a -> {
-            a.enable(r2dbc(r2dbcDsl -> {
+            a.enable(r2dbc(), r2dbcDsl -> {
                 r2dbcDsl.url("r2dbc:postgresql://" + pg.getContainerIpAddress() + ":" + pg.getFirstMappedPort() + "/db");
                 r2dbcDsl.username("jo");
                 r2dbcDsl.password("pwd");
-            }));
+            });
             a.beans(beans -> beans.bean(R2dbcTestDataRepository.class));
         });
 
@@ -116,12 +116,12 @@ class R2dbcDslTest {
         pg.start();
 
         var app = application(a -> {
-            a.enable(r2dbc(r2dbcDsl -> {
+            a.enable(r2dbc(), r2dbcDsl -> {
                 r2dbcDsl.url("r2dbc:postgresql://" + pg.getContainerIpAddress() + ":" + pg.getFirstMappedPort() + "/db");
                 r2dbcDsl.username("jo");
                 r2dbcDsl.password("pwd");
                 r2dbcDsl.transactional(true);
-            }));
+            });
             a.beans(beans -> beans.bean(R2dbcTestDataRepository.class));
         });
 

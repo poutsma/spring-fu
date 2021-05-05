@@ -13,7 +13,7 @@ public class ThymeleafDslTests {
 
 	@Test
 	void createAndRequestAThymeleafView() {
-		var app = reactiveWebApplication(a -> a.enable(webFlux(s -> s.port(0).thymeleaf().router(r -> r.GET("/view", request -> ok().render("template", Collections.singletonMap("name", "world")))))));
+		var app = reactiveWebApplication(a -> a.enable(webFlux(), s -> s.port(0).thymeleaf().router(r -> r.GET("/view", request -> ok().render("template", Collections.singletonMap("name", "world"))))));
 
 		var context = app.run();
 		var port = context.getEnvironment().getProperty("local.server.port");

@@ -13,21 +13,21 @@ public class WebServerDslTests {
 
 	@Test
 	public void emptyServer() {
-		var app = webApplication(a -> a.enable(webMvc(s -> s.port(0))));
+		var app = webApplication(a -> a.enable(webMvc(), s -> s.port(0)));
 		var context = app.run();
 		context.close();
 	}
 
 	@Test
 	public void emptyJettyServer() {
-		var app = webApplication(a -> a.enable(webMvc(s -> s.port(0).jetty())));
+		var app = webApplication(a -> a.enable(webMvc(), s -> s.port(0).jetty()));
 		var context = app.run();
 		context.close();
 	}
 
 	@Test
 	public void emptyUndertowServer() {
-		var app = webApplication(a -> a.enable(webMvc(s -> s.port(0).undertow())));
+		var app = webApplication(a -> a.enable(webMvc(), s -> s.port(0).undertow()));
 		var context = app.run();
 		context.close();
 	}
@@ -35,7 +35,7 @@ public class WebServerDslTests {
 	@Test
 	void createAndRequestAnEndpoint() {
 		var app = webApplication(a -> a.enable(
-				webMvc(s -> s.port(0).router(r -> r.GET("/foo", request -> noContent().build())))));
+				webMvc(), s -> s.port(0).router(r -> r.GET("/foo", request -> noContent().build()))));
 
 		var context = app.run();
 		var port = context.getEnvironment().getProperty("local.server.port");
@@ -47,7 +47,7 @@ public class WebServerDslTests {
 	@Test
 	void requestStaticFile() {
 		var app = webApplication(a -> a.enable(
-				webMvc(s -> s.port(0))));
+				webMvc(), s -> s.port(0)));
 
 		var context = app.run();
 		var port = context.getEnvironment().getProperty("local.server.port");

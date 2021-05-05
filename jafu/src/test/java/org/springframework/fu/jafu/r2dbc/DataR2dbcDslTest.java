@@ -27,9 +27,9 @@ class DataR2dbcDslTest {
         var dbPath = tempDir.resolve("test.db");
         Files.createFile(dbPath);
         var app = application(a -> {
-            a.enable(dataR2dbc(dataR2dbcDsl ->
+            a.enable(dataR2dbc(), dataR2dbcDsl ->
                     dataR2dbcDsl.r2dbc(r2dbcDsl ->
-                            r2dbcDsl.url("r2dbc:h2:file:///" + dbPath.toAbsolutePath()))));
+                            r2dbcDsl.url("r2dbc:h2:file:///" + dbPath.toAbsolutePath())));
             a.beans(beans -> beans.bean(DataR2dbcTestDataRepository.class));
         });
 
@@ -58,12 +58,12 @@ class DataR2dbcDslTest {
         pg.start();
 
         var app = application(a -> {
-            a.enable(dataR2dbc(dataR2dbcDsl ->
+            a.enable(dataR2dbc(), dataR2dbcDsl ->
                     dataR2dbcDsl.r2dbc(r2dbcDsl -> {
                         r2dbcDsl.url("r2dbc:postgresql://" + pg.getContainerIpAddress() + ":" + pg.getFirstMappedPort() + "/db");
                         r2dbcDsl.username("jo");
                         r2dbcDsl.password("pwd");
-                    })));
+                    }));
             a.beans(beans -> beans.bean(DataR2dbcTestDataRepository.class));
         });
 

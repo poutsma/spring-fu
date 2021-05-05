@@ -35,11 +35,10 @@ public class RedisDslTests {
         final var application = application(a ->
                 a
                         .beans(b -> b.bean(TestRepository.class))
-                        .enable(redis(r -> r
+                        .enable(redis(), r -> r
                                         .host(REDIS.getHost())
                                         .port(REDIS.getFirstMappedPort())
                                 )
-                        )
         );
 
         try (var context = application.run()) {
@@ -63,12 +62,11 @@ public class RedisDslTests {
                 a
                         .beans(b -> b.bean(TestRepository.class))
                         .enable(
-                                redis(r -> r
+                                redis(), r -> r
                                         .host(REDIS.getHost())
                                         .port(REDIS.getFirstMappedPort())
                                         .lettuce(l -> l.shutdownTimeout(Duration.ofMillis(100)))
                                 )
-                        )
         );
 
         try (var context = application.run()) {
@@ -91,12 +89,11 @@ public class RedisDslTests {
         final var application = application(a ->
                 a
                         .beans(b -> b.bean(TestRepository.class))
-                        .enable(redis(r -> r
+                        .enable(redis(), r -> r
                                         .host(REDIS.getHost())
                                         .port(REDIS.getFirstMappedPort())
                                         .jedis()
                                 )
-                        )
         );
 
         try (var context = application.run()) {

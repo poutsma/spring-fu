@@ -153,7 +153,7 @@ public class WebFluxServerDsl extends AbstractDsl {
 	 * Require {@code org.springframework.boot:spring-boot-starter-thymeleaf} dependency.
 	 */
 	public WebFluxServerDsl thymeleaf(Consumer<ThymeleafDsl> dsl) {
-		enable(ThymeleafDsl.thymeleaf(WebApplicationType.SERVLET), dsl);
+		enable(ThymeleafDsl.thymeleaf(WebApplicationType.REACTIVE), dsl);
 		return this;
 	}
 
@@ -170,7 +170,7 @@ public class WebFluxServerDsl extends AbstractDsl {
 	 * Require {@code org.springframework.boot:spring-boot-starter-mustache} dependency.
 	 */
 	public WebFluxServerDsl mustache(Consumer<MustacheDsl> dsl) {
-		enable(MustacheDsl.mustache(WebApplicationType.SERVLET), dsl);
+		enable(MustacheDsl.mustache(WebApplicationType.REACTIVE), dsl);
 		return this;
 	}
 
